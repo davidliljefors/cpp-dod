@@ -2098,8 +2098,8 @@ namespace olc
 		if (y2 < 0) y2 = 0;
 		if (y2 >= (int32_t)GetDrawTargetHeight()) y2 = (int32_t)GetDrawTargetHeight();
 
-		for (int i = x; i < x2; ++i)
-			for (int j = y; j < y2; ++j)
+		for (int j = y; j < y2; ++j)
+			for (int i = x; i < x2; ++i)
 				Draw(i, j, p);
 	}
 

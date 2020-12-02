@@ -160,6 +160,7 @@
     <ClInclude Include="components.h" />
     <ClInclude Include="ecs.h" />
     <ClInclude Include="olcPixelGameEngine.h" />
+    <ClInclude Include="type_traits.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

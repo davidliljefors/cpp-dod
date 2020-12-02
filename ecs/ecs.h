@@ -5,7 +5,12 @@
 #include <memory>
 #include <functional>
 #include <iterator>
+#include <array>
+#include <algorithm>
 #include <cassert>
+#include <variant>
+
+#include "type_traits.h"
 
 namespace ecs {
 	using entity_id = uint64_t;
@@ -15,12 +20,22 @@ namespace ecs {
 	constexpr uint32_t MAX_ENTITIES{ 100000u };
 	using component_mask = std::bitset<MAX_COMPONENTS>;
 
-	struct component {};
+	struct default_storage {
+		constexpr static size_t size = MAX_ENTITIES;
+	};
+	struct small_storage {
+		constexpr static size_t size = 8;
+	};
 
 #ifdef __cpp_lib_concepts
 #include <concepts>
+
 	template<typename T>
-	concept ComponentType = std::derived_from<T, component>;
+	concept ComponentType = requires (T t)
+	{
+		typename T::storage_type;
+	};
+
 #define ECS_COMPONENT ComponentType
 #else
 #define ECS_COMPONENT typename
@@ -50,34 +65,78 @@ namespace ecs {
 	constexpr auto INVALID_ENTITY = create_entity_id(std::numeric_limits<entity_index>::max(), 0);
 
 	namespace detail {
-		using id_type = uint32_t;
+		using id_type = uint8_t;
 		inline id_type component_counter{ 0 };
 
 		template <ECS_COMPONENT T>
 		id_type component_id() noexcept
 		{
-			static const int component_id = component_counter++;
+			static const uint8_t component_id = component_counter++;
 			return component_id;
 		}
 
+		template<typename tag>
 		struct component_pool
+		{
+			static_assert("Must specialize on tag!");
+		};
+
+		template<>
+		struct component_pool<default_storage>
 		{
 			component_pool() = default;
 			component_pool(size_t elementsize)
+				:elementSize(elementsize)
 			{
-				elementSize = elementsize;
-				storage = std::make_unique<uint8_t[]>(elementSize * MAX_ENTITIES);
+				storage = std::make_unique<uint8_t[]>(elementSize * default_storage::size);
 			}
 
 			inline void* get(size_t index)
 			{
-				return storage.get() + index * elementSize;
+				return &storage[index * elementSize];
 			}
 
 			std::unique_ptr<uint8_t[]> storage{ nullptr };
-			size_t elementSize{ 0 };
+			const size_t elementSize{ 0 };
 		};
 
+		template<>
+		struct component_pool<small_storage>
+		{
+			component_pool() = default;
+			component_pool(size_t elementsize)
+				:elementSize(elementsize)
+			{
+				index_mapping.reserve(small_storage::size);
+				storage = std::make_unique<uint8_t[]>(elementSize * small_storage::size);
+			}
+
+			inline void* get(size_t index)
+			{
+
+				auto mapped_index = std::find(index_mapping.begin(), index_mapping.end(), index);
+				if (mapped_index != index_mapping.end())
+				{
+					return storage.get() + *mapped_index * elementSize;
+				}
+				else
+				{
+					auto new_index = index_mapping.size();
+					index_mapping.push_back(index);
+					assert(index_mapping.size() < small_storage::size && "Growing small storage over maximum size not allowed");
+					return storage.get() + new_index * elementSize;
+				}
+			}
+
+			const auto& active_entities()
+			{
+				return index_mapping;
+			}
+
+			std::vector<size_t> index_mapping;
+			std::unique_ptr<uint8_t[]> storage{ nullptr };
+			const size_t elementSize{ 0 };
+		};
 	}
 
 	struct world;
@@ -122,7 +181,7 @@ namespace ecs {
 
 			if (entities.size() >= MAX_ENTITIES)
 			{
-				std::cerr << "Reached max entities!\n";
+				//std::cerr << "Reached max entities!\n";
 				return entity_builder(0, nullptr);
 			}
 
@@ -141,11 +200,11 @@ namespace ecs {
 			if (component_pools.size() <= component_id)
 			{
 				component_pools.reserve(component_id + 1);
-				component_pools.push_back(std::make_unique<detail::component_pool>(sizeof(T)));
+				component_pools.push_back(std::make_unique<pools>(pool_t<typename T::storage_type>(sizeof(T))));
 			}
 
 			const auto entity_index = get_entity_index(entity);
-			const auto component = ::new(component_pools[component_id]->get(entity_index)) T{};
+			const auto component = ::new(get_componenent_internal<T>(entity_index, component_id)) T{};
 
 			entities[entity_index].mask.set(component_id);
 			return *component;
@@ -159,11 +218,11 @@ namespace ecs {
 			if (component_pools.size() <= component_id)
 			{
 				component_pools.reserve(component_id + 1);
-				component_pools.push_back(std::make_unique<detail::component_pool>(sizeof(T)));
+				component_pools.push_back(std::make_unique<pools>(pool_t<typename T::storage_type>(sizeof(T))));
 			}
 
 			const auto entity_index = get_entity_index(entity);
-			const auto component = ::new(component_pools[component_id]->get(entity_index)) T(std::forward<Args>(args)...);
+			const auto component = ::new(get_componenent_internal<T>(entity_index, component_id)) T(std::forward<Args>(args)...);
 			entities[entity_index].mask.set(component_id);
 			return *component;
 		}
@@ -174,14 +233,12 @@ namespace ecs {
 			const auto component_id = detail::component_id<T>();
 			const auto entity_index = get_entity_index(entity);
 
-
 			if (!entities[entity_index].mask.test(component_id))
 			{
 				assert("get component on entity without component!");
 			}
 
-			auto component = static_cast<T*>(component_pools[component_id]->get(entity_index));
-			return *component;
+			return *get_componenent_internal<T>(entity_index, component_id);
 		}
 
 		template<ECS_COMPONENT... Ts>
@@ -223,7 +280,29 @@ namespace ecs {
 
 		std::vector<entity_desc> entities;
 		std::vector<entity_index> free_entities;
-		std::vector<std::unique_ptr<detail::component_pool>> component_pools;
+		template <typename pool_tag>
+		using pool_t = detail::component_pool<pool_tag>;
+
+		using pools = std::variant<pool_t<default_storage>, pool_t<small_storage>>;
+		std::vector<std::unique_ptr<pools>> component_pools;
+
+	private:
+		template<ECS_COMPONENT T>
+		inline T* get_componenent_internal(entity_index entity_index, detail::id_type component_id)
+		{
+			if constexpr (std::is_same_v<typename T::storage_type, default_storage>)
+			{
+				return static_cast<T*>(std::get<pool_t<default_storage>>(*component_pools[component_id]).get(entity_index));
+			}
+			else if constexpr (std::is_same_v<T::storage_type, small_storage>)
+			{
+				return static_cast<T*>(std::get<pool_t<small_storage>>(*component_pools[component_id]).get(entity_index));
+			}
+			else
+			{
+				static_assert("Unknown storage tag");
+			}
+		}
 	};
 
 	template<ECS_COMPONENT... Ts>
@@ -267,7 +346,7 @@ namespace ecs {
 
 		struct iterator
 		{
-			iterator(ecs::world* world, entity_index index, component_mask mask)
+			iterator(ecs::world* world, entity_index index, component_mask mask) noexcept
 				: world(world), index(index), mask(mask) {}
 
 			auto operator*() const

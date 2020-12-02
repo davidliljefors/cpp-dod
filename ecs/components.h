@@ -5,12 +5,14 @@
 
 using olc::vf2d;
 
-constexpr uint32_t SCREEN_WIDTH = 1280;
-constexpr uint32_t SCREEN_HEIGHT = 1024;
+constexpr uint32_t SCREEN_WIDTH = 600;
+constexpr uint32_t SCREEN_HEIGHT = 400;
 constexpr vf2d TILE_SIZE{ 16.0f, 16.0f };
 
-struct Transform : ecs::component
+struct Transform
 {
+	using storage_type = ecs::default_storage;
+
 	Transform(float x, float y) :
 		position({ x, y }) {}
 
@@ -20,15 +22,19 @@ struct Transform : ecs::component
 	vf2d position{ 0.0f, 0.0f };
 };
 
-struct Name : ecs::component
+struct Name
 {
+	using storage_type = ecs::default_storage;
+
 	Name(std::string name)
 		:value(std::move(name)) {}
 	std::string value;
 };
 
-struct Graphic : ecs::component
+struct Graphic
 {
+	using storage_type = ecs::default_storage;
+
 	Graphic(olc::Pixel color, vf2d size)
 		:color(color), size(size) {}
 
@@ -36,27 +42,36 @@ struct Graphic : ecs::component
 	vf2d size = TILE_SIZE;
 };
 
-struct CircleCollider : ecs::component
+struct CircleCollider
 {
+	using storage_type = ecs::default_storage;
+
 	CircleCollider() = default;
 	CircleCollider(uint32_t radius)
 		: radius(radius) {}
 	uint32_t radius = 8;
 };
 
-struct Player : ecs::component
+
+struct Player
 {
+	using storage_type = ecs::small_storage;
+
 	float movement_speed = 250.f;
 };
 
-struct Enemy : ecs::component
+struct Enemy
 {
+	using storage_type = ecs::default_storage;
+
 	float movement_speed = 25.f;
 	float stopping_distance = 10.f;
 };
 
-struct Health : ecs::component
+struct Health
 {
+	using storage_type = ecs::default_storage;
+
 	Health(uint32_t value) :
 		value(value) {}
 	uint32_t value{ 100 };

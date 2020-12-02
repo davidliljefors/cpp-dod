@@ -66,6 +66,7 @@ public:
 		Clear(olc::BLACK);
 
 		// Render System
+
 		ecs::view<Transform, Graphic>(world).for_each(
 			[&](const Transform& t, const Graphic& g)
 			{
@@ -73,7 +74,6 @@ public:
 			}
 		);
 
-		// Draw Player Circle Collider
 		ecs::view<Transform, Player, CircleCollider>(world).for_each(
 			[&](const Transform& t, const Player& p, const CircleCollider& cc)
 			{
@@ -91,7 +91,7 @@ public:
 
 				if (distance > e.stopping_distance)
 				{
-					t.position += path_to_player.norm() * fElapsedTime * e.movement_speed * 1.0f / (distance * 0.001f);
+					//t.position += path_to_player.norm() * fElapsedTime * e.movement_speed * 1.0f / (distance * 0.001f);
 				}
 			}
 		);
@@ -131,9 +131,9 @@ public:
 		// Spawn bunch of stuff on space
 		if (GetKey(olc::SPACE).bPressed)
 		{
-			for (float x = 0; x < SCREEN_WIDTH; x += 4.F)
+			for (float x = 0; x < SCREEN_WIDTH; x += SCREEN_WIDTH / 300.0F)
 			{
-				for (float y = 0; y < SCREEN_HEIGHT; y += 4.F)
+				for (float y = 0; y < SCREEN_HEIGHT; y+= SCREEN_HEIGHT / 300.0F)
 				{
 					make_enemy(world, x, y);
 				}
@@ -150,7 +150,7 @@ private:
 int main()
 {
 	Example example;
-	if (example.Construct(SCREEN_WIDTH, SCREEN_HEIGHT, 1, 1))
+	if (example.Construct(SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2))
 	{
 		example.Start();
 	}
