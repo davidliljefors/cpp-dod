@@ -15,16 +15,22 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ecs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="olcPixelGameEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="components.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="type_traits.h">
+    <ClInclude Include="ecs\ecs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ecs\component_pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ecs\world.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ecs\include.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

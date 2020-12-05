@@ -1,7 +1,7 @@
 #pragma once
 
 #include "olcPixelGameEngine.h"
-#include "ecs.h"
+#include "ecs/include.h"
 
 using olc::vf2d;
 
@@ -11,7 +11,7 @@ constexpr vf2d TILE_SIZE{ 16.0f, 16.0f };
 
 struct Transform
 {
-	using storage_type = ecs::default_storage;
+	using storage_type = ecs::default_storage_t;
 
 	Transform(float x, float y) :
 		position({ x, y }) {}
@@ -24,7 +24,7 @@ struct Transform
 
 struct Name
 {
-	using storage_type = ecs::default_storage;
+	using storage_type = ecs::default_storage_t;
 
 	Name(std::string name)
 		:value(std::move(name)) {}
@@ -33,7 +33,7 @@ struct Name
 
 struct Graphic
 {
-	using storage_type = ecs::default_storage;
+	using storage_type = ecs::default_storage_t;
 
 	Graphic(olc::Pixel color, vf2d size)
 		:color(color), size(size) {}
@@ -44,7 +44,7 @@ struct Graphic
 
 struct CircleCollider
 {
-	using storage_type = ecs::default_storage;
+	using storage_type = ecs::default_storage_t;
 
 	CircleCollider() = default;
 	CircleCollider(uint32_t radius)
@@ -55,24 +55,24 @@ struct CircleCollider
 
 struct Player
 {
-	using storage_type = ecs::small_storage;
+	using storage_type = ecs::small_storage_t;
 
 	float movement_speed = 250.f;
 };
 
-struct Enemy
-{
-	using storage_type = ecs::default_storage;
-
-	float movement_speed = 25.f;
-	float stopping_distance = 10.f;
-};
-
 struct Health
 {
-	using storage_type = ecs::default_storage;
+	using storage_type = ecs::default_storage_t;
 
 	Health(uint32_t value) :
 		value(value) {}
 	uint32_t value{ 100 };
+};
+
+struct Enemy
+{
+	using storage_type = ecs::default_storage_t;
+
+	float movement_speed = 25.f;
+	float stopping_distance = 10.f;
 };

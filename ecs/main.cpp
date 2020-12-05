@@ -5,10 +5,12 @@
 #include "olcPixelGameEngine.h"
 
 #include "components.h"
-#include "ecs.h"
+#include "ecs/include.h"
 
 using namespace std::string_literals;
 using olc::vf2d;
+
+
 
 auto make_player(ecs::world& world, std::string name, olc::Pixel color)
 {
@@ -16,10 +18,9 @@ auto make_player(ecs::world& world, std::string name, olc::Pixel color)
 	builder
 		.with<Transform>(200.0F, 200.0F)
 		.with<Name>(name)
-		.with<Health>(100)
-		.with<Graphic>(color, TILE_SIZE)
 		.with<CircleCollider>()
-		.with<Player>();
+		.with<Player>()
+		.with<Health>(100);
 
 	return builder.id;
 }
@@ -66,7 +67,6 @@ public:
 		Clear(olc::BLACK);
 
 		// Render System
-
 		ecs::view<Transform, Graphic>(world).for_each(
 			[&](const Transform& t, const Graphic& g)
 			{
@@ -77,7 +77,7 @@ public:
 		ecs::view<Transform, Player, CircleCollider>(world).for_each(
 			[&](const Transform& t, const Player& p, const CircleCollider& cc)
 			{
-				DrawCircle(t.position, static_cast<int>(cc.radius));
+				FillCircle(t.position, static_cast<int>(cc.radius));
 			}
 		);
 
@@ -91,7 +91,7 @@ public:
 
 				if (distance > e.stopping_distance)
 				{
-					//t.position += path_to_player.norm() * fElapsedTime * e.movement_speed * 1.0f / (distance * 0.001f);
+					t.position += path_to_player.norm() * fElapsedTime * e.movement_speed * 1.0f / (distance * 0.1f);
 				}
 			}
 		);
@@ -139,6 +139,21 @@ public:
 				}
 			}
 		}
+
+		//
+		if (GetMouse(0).bHeld)
+		{
+			auto& player_transform = world.get_component<Transform>(player);
+			player_transform.position = GetMousePos();
+		}
+
+		if (GetMouseWheel() != 0)
+		{
+			auto& player_collider = world.get_component<CircleCollider>(player);
+			player_collider.radius += GetMouseWheel() / 60;
+			player_collider.radius = std::max<uint32_t>(player_collider.radius, 2);
+		}
+
 		return true;
 	}
 
