@@ -6,13 +6,7 @@
 
 namespace ecs::detail {
 
-	inline int counter = 0;
-	template <ECS_COMPONENT T>
-	static inline int type_id()
-	{
-		static int value = counter++;
-		return value;
-	}
+	
 
 	template<typename tag_t>
 	struct component_pool

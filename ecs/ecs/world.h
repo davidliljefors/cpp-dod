@@ -1,9 +1,22 @@
 #pragma once
 
+#include "ecs.h"
+
 #include <variant>
 #include <vector>
 
 namespace ecs {
+	
+	namespace detail {
+		inline int counter = 0;
+		template <ECS_COMPONENT T>
+		__forceinline static int type_id()
+		{
+			static int value = counter++;
+			return value;
+		}
+	}
+	
 	struct world;
 
 	struct entity_builder
@@ -45,7 +58,7 @@ namespace ecs {
 				return entity_builder(new_id, this);
 			}
 
-			if (entities.size() >= MAX_ENTITIES)
+			if (entities.size() >= MAX_ENTITIES) [[unlikely]]
 			{
 				//std::cerr << "Reached max entities!\n";
 				return entity_builder(0, nullptr);
@@ -63,7 +76,7 @@ namespace ecs {
 		{
 			const auto component_id = detail::type_id<T>();
 
-			if (component_pools.size() <= component_id)
+			if (component_pools.size() <= component_id) [[unlikely]]
 			{
 				component_pools.reserve(component_id + 1);
 				component_pools.push_back(std::make_unique<pools>(pool_t<typename T::storage_type>(sizeof(T))));
@@ -81,7 +94,7 @@ namespace ecs {
 		{
 			const auto component_id = detail::type_id<T>();
 
-			if (component_pools.size() <= component_id)
+			if (component_pools.size() <= component_id) [[unlikely]]
 			{
 				component_pools.reserve(component_id + 1);
 				component_pools.push_back(std::make_unique<pools>(pool_t<typename T::storage_type>(sizeof(T))));
@@ -100,7 +113,7 @@ namespace ecs {
 			const auto entity_index = get_entity_index(entity);
 
 
-			assert(!entities[entity_index].mask.test(component_id) && "get component on entity without component!");
+			assert(entities[entity_index].mask.test(component_id) && "get component on entity without component!");
 
 			return *get_componenent_address<T>(entity_index, component_id);
 		}
@@ -116,7 +129,7 @@ namespace ecs {
 		{
 			const auto entity_index = get_entity_index(entity);
 
-			if (entities[entity_index].id != entity)
+			if (entities[entity_index].id != entity) [[unlikely]]
 			{
 				std::cerr << "Remove component failed!\n";
 				return;
@@ -154,21 +167,8 @@ namespace ecs {
 		template<ECS_COMPONENT T>
 		inline T* get_componenent_address(entity_index entity_index, int component_id)
 		{
-			if constexpr (std::is_same_v<typename T::storage_type, default_storage_t>)
-			{
-				return static_cast<T*>(std::get<pool_t<default_storage_t>>(*component_pools[component_id]).get(entity_index));
-			}
-			else if constexpr (std::is_same_v<T::storage_type, small_storage_t>)
-			{
-				return static_cast<T*>(std::get<pool_t<small_storage_t>>(*component_pools[component_id]).get(entity_index));
-			}
-			else
-			{
-				static_assert("Unknown storage tag");
-			}
+			return static_cast<T*>(std::get<pool_t<typename T::storage_type>>(*component_pools[component_id]).get(entity_index));
 		}
-
-
 	};
 
 	template<ECS_COMPONENT... Ts>
@@ -184,6 +184,7 @@ namespace ecs {
 					mask.set(id);
 				}
 			}
+			// Todo logic on storage types. only check small storage list of entities if present!
 		}
 
 		template<typename Func>
